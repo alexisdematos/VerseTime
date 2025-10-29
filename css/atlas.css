@@ -45,6 +45,20 @@
     backdrop-filter: blur(7px);
 }
 
+#BUTTON-zoom-out {
+    position: fixed;
+    bottom: 0px;
+    left: 50%;
+    transform: translate(-50%, 0%);
+    margin-top: 10px;
+    font-family: 'Rajdhani', 'Verdana', sans-serif;
+    font-weight: bold;
+    font-size: 16px;
+    text-transform: uppercase;
+    z-index: 999;
+    backdrop-filter: blur(7px);
+}
+
 #atlas-hoverinfo {
     z-index: 1000;
     opacity: 0;

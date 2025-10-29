@@ -74,6 +74,26 @@ class AtlasLabelManager {
         nameElement.innerText = body.NAME;
         div.appendChild(nameElement);
 
+        // Ajoute un eventListener pour zoom animé sur le label
+        nameElement.addEventListener('pointerdown', (e) => {
+            if (e.button !== 0) return;
+            e.stopPropagation();
+            console.log('Label animé :', body.NAME);
+            let typeLevel = (body.TYPE === 'Moon') ? 'moon' : (body.TYPE === 'Planet' ? 'planet' : (body.TYPE === 'Star' ? 'star' : 'other'));
+            let target = body;
+            // Pour robustesse, retrouve l'instance principale
+            if (typeLevel === 'star' && body.PARENT_SYSTEM && body.PARENT_SYSTEM.NAME && body.NAME === body.PARENT_SYSTEM.NAME) {
+                target = DB.systems.find(sys => sys.NAME === body.PARENT_SYSTEM.NAME) || body.PARENT_SYSTEM;
+            } else if (typeLevel === 'planet' || typeLevel === 'moon') {
+                target = DB.bodies.find(b => b.NAME === body.NAME) || body;
+            }
+            let zoom = 7.5;
+            if (typeLevel === 'moon') zoom = 0.0001;
+            else if (typeLevel === 'planet') zoom = 0.03;
+            else if (typeLevel === 'star') zoom = 7.5;
+            document.dispatchEvent(new CustomEvent('atlasFocusBreadcrumb', { detail: { object: target, zoom, typeLevel } }));
+        });
+
         // INDICATE STATION PRESENCE AT LAGRANGE POINTS
         if (body.TYPE === 'Lagrange Point') {
             let children = [];
@@ -120,6 +140,21 @@ class AtlasLabelManager {
         nameElement.classList.add('atlas-label-name');
         nameElement.innerText = location.NAME;
         div.appendChild(nameElement);
+
+        // Ajoute un eventListener pour zoom animé sur le label de location (lune, POI, etc.)
+        nameElement.addEventListener('pointerdown', (e) => {
+            if (e.button !== 0) return;
+            e.stopPropagation();
+            console.log('Label animé (location) :', location.NAME);
+            // On cible le parent (corps céleste) pour le focus
+            let parentBody = DB.bodies.find(b => b.NAME === location.PARENT.NAME);
+            let typeLevel = (location.PARENT.TYPE === 'Moon') ? 'moon' : (location.PARENT.TYPE === 'Planet' ? 'planet' : 'other');
+            let target = parentBody || location.PARENT;
+            let zoom = 7.5;
+            if (typeLevel === 'moon') zoom = 0.0001;
+            else if (typeLevel === 'planet') zoom = 0.03;
+            document.dispatchEvent(new CustomEvent('atlasFocusBreadcrumb', { detail: { object: target, zoom, typeLevel } }));
+        });
 
         const label = new CSS2DObject(div);
         let labelPosition;
@@ -197,25 +232,14 @@ class AtlasLabelManager {
 
     #setLabelEvents(domElement, targetObject) {
         domElement.addEventListener('pointerdown', (event) => {
+            // Si on clique sur le nom, on laisse le handler .atlas-label-name gérer l'animation
+            if (event.target.classList.contains('atlas-label-name')) return;
             if (event.button === 0) {
                 setFocus(targetObject);
             }
         });
-
-        console.warn('TODO: bind label infobox events');
-        return; 
-
-        domElement.addEventListener('mouseenter', (event) => {
-            showInfobox(targetObject, event);
-        });
-
-        domElement.addEventListener('mousemove', (event) => {
-            moveInfobox(event);
-        })
-
-        domElement.addEventListener('mouseleave', (event) => {
-            hideInfobox(targetObject);
-        });
+        // (On peut garder les events infobox plus tard si besoin)
+        return;
     }
 
     organize(distance, visibility, camera, focusBody) {

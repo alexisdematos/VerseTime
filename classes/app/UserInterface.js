@@ -8,6 +8,13 @@ import Star from '../Star.js';
 
 
 class UserInterface {
+	// Calcule le zoom comme dans le fil d'Ariane, selon l'objet et la hiérarchie
+	getAtlasZoomForObject(object) {
+		if (object instanceof SolarSystem) return 7.5;
+		if (object.TYPE === 'Star') return 0.03;
+		if (object.TYPE === 'Planet' || object.TYPE === 'Jump Point') return 0.03;
+		return 0.0001;
+	}
     constructor() {
         if (UserInterface.instance) return UserInterface.instance;
 		UserInterface.instance = this;
@@ -59,6 +66,10 @@ class UserInterface {
 		this.listen('click', 'BUTTON-close-credits', () => { UI.Credits.toggle(); });
 
 		this.listen('click', 'BUTTON-share-location', this.shareLocation);
+		
+		this.listen('click', 'BUTTON-zoom-out', () => {
+			document.dispatchEvent(new CustomEvent('atlasZoomOut'));
+		});
 
 
 		// KEYBOARD TOGGLES
@@ -757,91 +768,70 @@ class UserInterface {
 		const e = UI.el('atlas-treelist');
 		e.innerHTML = '';
 
-
 		// STARS
-		const stars = DB.stars.filter((s) => {
-			return s.PARENT_SYSTEM === system;
-		});
-
+		const stars = DB.stars.filter((s) => s.PARENT_SYSTEM === system);
 		if (stars.length < 1) {
 			const level1 = document.createElement('li');
 			level1.innerText = 'System data unavailable';
 			e.appendChild(level1);
 			return;
 		}
-
 		for (const star of stars) {
-			const li1 = this.#createAtlasSidebarSelector(e, star);
-
+			const li1 = this.createAtlasSidebarSelector(e, star, 'star');
 			// PLANETS
-			const planets = DB.bodies.filter((planet) => {
-				if (
-					planet.PARENT &&
-					planet.PARENT.NAME === star.NAME
-				) {
-					return true;
-				}
-			});
-
-			planets.sort((a, b) => {
-				return (a.ORDINAL < b.ORDINAL) ? -1 : (a.ORDINAL > b.ORDINAL) ? 1 : 0;
-			});
-
-
+			const planets = DB.bodies.filter((planet) => planet.PARENT && planet.PARENT.NAME === star.NAME);
+			planets.sort((a, b) => (a.ORDINAL < b.ORDINAL) ? -1 : (a.ORDINAL > b.ORDINAL) ? 1 : 0);
 			const ul2 = document.createElement('ul');
 			if (planets.length > 0) {
 				li1.appendChild(ul2);
 			}
-
 			for (const planet of planets) {
-				const li2 = this.#createAtlasSidebarSelector(ul2, planet);
-
+				const li2 = this.createAtlasSidebarSelector(ul2, planet, 'planet');
 				// MOONS
-				const moons = DB.bodies.filter((moon) => {
-					if (
-						moon.PARENT &&
-						moon.PARENT.NAME === planet.NAME
-					) {
-						return true;
-					}
-				});
-
-				moons.sort((a, b) => {
-					return (a.ORDINAL < b.ORDINAL) ? -1 : (a.ORDINAL > b.ORDINAL) ? 1 : 0;
-				});
-
+				const moons = DB.bodies.filter((moon) => moon.PARENT && moon.PARENT.NAME === planet.NAME);
+				moons.sort((a, b) => (a.ORDINAL < b.ORDINAL) ? -1 : (a.ORDINAL > b.ORDINAL) ? 1 : 0);
 				const ul3 = document.createElement('ul');
 				if (moons.length > 0) {
 					li2.appendChild(ul3);
 				}
-
 				for (const moon of moons) {
-					this.#createAtlasSidebarSelector(ul3, moon);
+					this.createAtlasSidebarSelector(ul3, moon, 'moon');
 				}
 			}
 		}
 	}
 
-	#createAtlasSidebarSelector(parentElement, object) {
+	createAtlasSidebarSelector(parentElement, object, typeLevel) {
 		const element = document.createElement('li');
 		parentElement.appendChild(element);
-		//element.innerText = object.NAME;
 
 		const selector = document.createElement('span');
 		selector.innerText = object.NAME;
-		//selector.classList.add('selector');
 		selector.classList.add('atlas-sidebar-object-selector');
 		element.appendChild(selector);
 
-		//element.classList.add('atlas-sidebar-object-selector');
+		// S'assurer qu'un seul handler est attaché (sur <li> uniquement)
 		element.addEventListener('click', (e) => {
 			e.stopPropagation();
-			let event = new CustomEvent('changeAtlasFocus', {
-				'detail': {
-					newObject: object
-				}
-			});
-			document.dispatchEvent(event);
+			e.stopImmediatePropagation();
+			let target = object;
+			if (typeLevel === 'star' && object.PARENT_SYSTEM && object.PARENT_SYSTEM.NAME && object.NAME === object.PARENT_SYSTEM.NAME) {
+				// Cherche l'instance réelle de SolarSystem
+				target = DB.systems.find(sys => sys.NAME === object.PARENT_SYSTEM.NAME) || object.PARENT_SYSTEM;
+			} else if (typeLevel === 'planet' || typeLevel === 'moon') {
+				// Cherche l'instance principale dans DB.bodies
+				target = DB.bodies.find(b => b.NAME === object.NAME) || object;
+			}
+			// Détermine la profondeur pour le zoom (comme dans le fil d'Ariane)
+			let zoom = 7.5;
+			if (typeLevel === 'moon') {
+				zoom = 0.0001;
+			} else if (typeLevel === 'planet') {
+				zoom = 0.03;
+			} else if (typeLevel === 'star') {
+				zoom = 7.5;
+			}
+			document.dispatchEvent(new CustomEvent('atlasFocusBreadcrumb', { detail: { object: target, zoom, typeLevel } }));
 		});
 
 		return element;
@@ -849,18 +839,52 @@ class UserInterface {
 
 
 	updateAtlasHierarchy(focusBody, focusSystem) {
-		let textString = '';
+		// Construit le fil d'Ariane interactif
+		let elements = [];
+		let objects = [];
 		if (focusBody instanceof SolarSystem || focusBody instanceof Star) {
-			textString = focusBody.NAME;
-
+			elements = [focusBody.NAME];
+			objects = [focusBody];
 		} else if (focusBody.TYPE === 'Planet' || focusBody.TYPE === 'Jump Point') {
-			textString = `${focusSystem.NAME} ▸ ${focusBody.NAME}`;
-
+			elements = [focusSystem.NAME, focusBody.NAME];
+			objects = [focusSystem, focusBody];
 		} else {
-			textString = `${focusSystem.NAME} ▸ ${focusBody.PARENT.NAME} ▸ ${focusBody.NAME}`;
+			elements = [focusSystem.NAME, focusBody.PARENT.NAME, focusBody.NAME];
+			objects = [focusSystem, focusBody.PARENT, focusBody];
 		}
 
-		UI.setText('atlas-hierarchy', textString);
+		// Création des spans cliquables
+		const container = document.getElementById('atlas-hierarchy');
+		container.innerHTML = '';
+		elements.forEach((el, idx) => {
+			const span = document.createElement('span');
+			span.textContent = el;
+			span.style.cursor = 'pointer';
+			span.style.textDecoration = 'underline';
+			span.style.marginRight = '4px';
+			span.addEventListener('click', () => {
+				// Détermine le zoom selon le niveau
+				let zoom = 7.5;
+				if (elements.length === 3) {
+					if (idx === 0) zoom = 7.5; // system
+					else if (idx === 1) zoom = 0.03; // body
+					else if (idx === 2) zoom = 0.0001; // childbody
+				} else if (elements.length === 2) {
+					if (idx === 0) zoom = 7.5;
+					else if (idx === 1) zoom = 0.03;
+				} else {
+					zoom = 7.5;
+				}
+				document.dispatchEvent(new CustomEvent('atlasFocusBreadcrumb', { detail: { object: objects[idx], zoom } }));
+			});
+			container.appendChild(span);
+			if (idx < elements.length - 1) {
+				const sep = document.createElement('span');
+				sep.textContent = ' ▸ ';
+				sep.style.marginRight = '4px';
+				container.appendChild(sep);
+			}
+		});
 	}
 
 	showAtlasInfobox(object, event) {

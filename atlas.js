@@ -232,7 +232,8 @@ document.addEventListener('changeAtlasFocus', (e) => {
 	setFocus(e.detail.newObject);
 });
 
-export function setFocus(object) {
+export function setFocus(object, options) {
+	options = options || {};
 	const oldFocusBody = focusBody;
 	const oldFocusSystem = focusSystem;
 	
@@ -242,23 +243,26 @@ export function setFocus(object) {
 
 	} else if (object instanceof SolarSystem) {
 		const stars = DB.getStarsInSystem(object);
+		if (!stars || !stars[0]) {
+			console.error('Aucun astre principal trouvé pour ce système:', object);
+			return;
+		}
 		focusBody = getStarByName(stars[0].NAME);
 		focusSystem = object;
-		
 	} else {
 		const systemName = (object.TYPE === 'Star') ? object.NAME : object.PARENT_STAR.NAME;
 		focusSystem = getSystemByName(systemName);
 		focusBody = object;
 	}
 	
-	setFocus_moveCamera(focusBody, oldFocusBody);
-	zoomControls.minDistance = (focusBody.BODY_RADIUS / mapScale) * 1.01;
+	if (!options.skipCameraAnimation) {
+		setFocus_moveCamera(focusBody, oldFocusBody);
+	}
 
 	UI.updateAtlasHierarchy(focusBody, focusSystem);
-	UI.populateAtlasSidebar(focusSystem);
-
-	// ENABLE ONLY NEAREST LIGHT
+	// Ne reconstruit la sidebar que si le système change
 	if (focusSystem !== oldFocusSystem) {
+		UI.populateAtlasSidebar(focusSystem);
 		for (const light of lights) {
 			light.castShadow = false;
 		}
@@ -1059,4 +1063,107 @@ function populateInfobox(object) {
 
 function hideInfobox() {
 	infoBox.style.opacity = '0';
+}
+
+// Animation fluide de la caméra vers un objet cible (utilisé pour fil d'Ariane et zoom out)
+function moveCameraToObject(targetObject, distance = 7.5, duration = 800, onComplete = null) {
+	// Met à jour minDistance AVANT l'animation pour éviter le saut de zoom à la fin
+	if (targetObject.BODY_RADIUS) {
+		zoomControls.minDistance = (targetObject.BODY_RADIUS / mapScale) * 1.01;
+	}
+	let objectName = null;
+
+	let objectMesh, targetPosition, endCam, endTarget;
+	if (targetObject instanceof SolarSystem) {
+		// Focus système : vue du dessus
+		const stars = DB.getStarsInSystem(targetObject);
+		objectMesh = scene.getObjectByName(stars[0].NAME);
+		if (!objectMesh) return;
+		targetPosition = new THREE.Vector3();
+		objectMesh.getWorldPosition(targetPosition);
+		endTarget = targetPosition.clone();
+		// Place la caméra à distance sur l'axe Z (vue du dessus)
+		endCam = targetPosition.clone().add(new THREE.Vector3(0, 0, distance));
+	} else {
+		objectMesh = scene.getObjectByName(targetObject.NAME);
+		if (!objectMesh) return;
+		targetPosition = new THREE.Vector3();
+		objectMesh.getWorldPosition(targetPosition);
+		endTarget = targetPosition.clone();
+		// Direction depuis la cible vers la caméra actuelle
+		const direction = new THREE.Vector3();
+		direction.subVectors(camera.position, zoomControls.target).normalize();
+		endCam = new THREE.Vector3().copy(direction).multiplyScalar(distance).add(targetPosition);
+	}
+
+	const startCam = camera.position.clone();
+	const startTarget = zoomControls.target.clone();
+	// Animation de l'orientation (up vector)
+	const startUp = camera.up.clone();
+	// Pour la vue du dessus, up vector reste Z
+	const endUp = new THREE.Vector3(0, 0, 1);
+
+	const startTime = performance.now();
+
+	function animate() {
+		const now = performance.now();
+		const t = Math.min(1, (now - startTime) / duration);
+		const ease = t < 0.5 ? 2*t*t : -1+(4-2*t)*t;
+		camera.position.lerpVectors(startCam, endCam, ease);
+		controls.target.lerpVectors(startTarget, endTarget, ease);
+		zoomControls.target.lerpVectors(startTarget, endTarget, ease);
+		camera.up.lerpVectors(startUp, endUp, ease);
+		// Toujours regarder la cible animée
+		camera.lookAt(controls.target);
+
+		camera.updateProjectionMatrix();
+		controls.update();
+		zoomControls.update();
+		if (t < 1) {
+			requestAnimationFrame(animate);
+		} else {
+			camera.position.copy(endCam);
+			controls.target.copy(endTarget);
+			zoomControls.target.copy(endTarget);
+			camera.up.copy(endUp);
+			// Ne pas refaire lookAt ici, controls.update() s'en charge
+			camera.updateProjectionMatrix();
+			controls.update();
+			zoomControls.update();
+			// Correction : forcer une frame de plus pour garantir la cohérence
+			requestAnimationFrame(() => {
+				controls.update();
+				zoomControls.update();
+				if (typeof onComplete === 'function') onComplete();
+			});
+		}
+	}
+	animate();
+}
+
+// Fil d'Ariane : écouteur pour focus sur l'objet cliqué avec animation
+document.addEventListener('atlasFocusBreadcrumb', (e) => {
+	let zoom = (typeof e.detail.zoom !== 'undefined')
+		? e.detail.zoom
+		: (typeof UI.getAtlasZoomForObject === 'function' ? UI.getAtlasZoomForObject(e.detail.object) : 7.5);
+	// Correction : s'assurer que le zoom n'est jamais inférieur au minDistance calculé pour l'objet
+	if (e.detail.object && e.detail.object.BODY_RADIUS) {
+		const minDist = (e.detail.object.BODY_RADIUS / mapScale) * 1.01;
+		if (zoom < minDist) zoom = minDist;
+	}
+	moveCameraToObject(e.detail.object, zoom, 800, () => {
+		setFocus(e.detail.object, { skipCameraAnimation: true });
+		// Force la mise à jour du fil d'Ariane même si focusBody/focusSystem ne changent pas
+		UI.updateAtlasHierarchy(focusBody, focusSystem);
+	});
+});
+// Écouteur d'événement pour dézoomer depuis l'UI
+document.addEventListener('atlasZoomOut', () => {
+	zoomOutAtlas();
+});
+
+// Fonction pour dézoomer la caméra dans l'atlas
+export function zoomOutAtlas() {
+	if (typeof THREE === 'undefined' || !zoomControls || !camera || !focusSystem) return;
+	moveCameraToObject(focusSystem, 7.5, 800, () => setFocus(focusSystem));
 }
