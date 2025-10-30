@@ -51,6 +51,10 @@ export default class CelestialBody {
 		const qy = this.ROTATION_QUATERNION.y;
 		const qz = this.ROTATION_QUATERNION.z;
 
+		// Prevent crash if distantObject is null
+		if (!distantObject || !distantObject.COORDINATES) {
+			return 0;
+		}
 		const sx = distantObject.COORDINATES.x;
 		const sy = distantObject.COORDINATES.y;
 		const sz = distantObject.COORDINATES.z;
@@ -86,10 +90,13 @@ export default class CelestialBody {
 	 * @returns {Object} Transformed x, y, z coordinates. 
 	 */
 	BS(distantObject) {
+		// Prevent crash if distantObject is null
+		if (!distantObject || !distantObject.COORDINATES) {
+			return { x: 0, y: 0, z: 0 };
+		}
 		const x = this.#BS_INTERNAL('x', distantObject);
 		const y = this.#BS_INTERNAL('y', distantObject);
 		const z = this.#BS_INTERNAL('z', distantObject);
-
 		return { 'x': x, 'y': y, 'z': z };
 	}
 

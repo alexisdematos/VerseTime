@@ -66,11 +66,17 @@
     margin-left: 8px;
     padding: 3px 6px;
     user-select: none;
-    pointer-events: none;
+    pointer-events: auto;
     font-size: 10px;
     text-transform: uppercase;
     transition: opacity 0.2s;
 }
+
+#atlas-hoverinfo[style*="opacity: 1"] {
+    opacity: 1 !important;
+    pointer-events: auto !important;
+}
+
 
 .atlas-label {
     z-index: 10;
@@ -119,11 +125,11 @@
     }
 
     .atlas-label[data-object-type="Location"] {
-        /*text-shadow: 0 0 4px var(--theme-color-dark), 0 0 4px var(--theme-color-dark), 0 0 4px var(--theme-color-dark), 0 0 4px var(--theme-color-dark);*/
-        color: rgba(255, 255, 255, 0.95);
-        font-size: 8px;
-        user-select: none;
-        pointer-events: none;
+    /*text-shadow: 0 0 4px var(--theme-color-dark), 0 0 4px var(--theme-color-dark), 0 0 4px var(--theme-color-dark), 0 0 4px var(--theme-color-dark);*/
+    color: rgba(255, 255, 255, 0.95);
+    font-size: 8px;
+    user-select: auto;
+    pointer-events: auto;
     }
 
 

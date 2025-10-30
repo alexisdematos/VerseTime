@@ -132,23 +132,39 @@ class AtlasLabelManager {
         div.classList.add('atlas-label');
         div.dataset.objectType = 'Location';
         div.dataset.objectName = location.NAME;
-        div.dataset.systemName = location.PARENT_STAR.NAME;
-        div.dataset.bodyName = location.PARENT.NAME;
+    div.dataset.systemName = location.PARENT_STAR ? location.PARENT_STAR.NAME : '';
+    div.dataset.bodyName = location.PARENT ? location.PARENT.NAME : '';
         div.dataset.visible = false;
 
-       this.#setLabelEvents(div, location);
+        this.#setLabelEvents(div, location);
 
+        // Icône POI
         const iconElement = document.createElement('div');
-        this.#setBodyIcon(location.TYPE, iconElement);
-        iconElement.style.marginTop = '15px';
+        this.#setLocationIcon(location.TYPE, iconElement);
+        iconElement.style.marginTop = '10px';
         div.appendChild(iconElement);
 
+        // Nom
         const nameElement = document.createElement('p');
         nameElement.classList.add('atlas-label-name');
         nameElement.innerText = location.NAME;
         div.appendChild(nameElement);
 
-        // Ajoute un eventListener pour zoom animé sur le label de location (lune, POI, etc.)
+        // Heure locale
+        const timeElement = document.createElement('p');
+        timeElement.classList.add('atlas-label-time');
+        timeElement.innerText = this.#getLocalTimeString(location);
+        div.appendChild(timeElement);
+
+        // Infobox détaillé au survol
+        div.addEventListener('mouseenter', (e) => {
+            this.#showAtlasLocationInfobox(location, div);
+        });
+        div.addEventListener('mouseleave', (e) => {
+            this.#hideAtlasLocationInfobox();
+        });
+
+        // Zoom animé sur le label de location (lune, POI, etc.)
         nameElement.addEventListener('pointerdown', (e) => {
             if (e.button !== 0) return;
             e.stopPropagation();
@@ -193,6 +209,83 @@ class AtlasLabelManager {
         }
 
         this.allLabels.push(label);
+    }
+
+    // Copie la logique d'icône de map.js
+    #setLocationIcon(type, element) {
+        element.classList.add('mapLocationIcon');
+        element.classList.add('atlas-label-icon');
+        if (
+            type === 'Emergency shelter' ||
+            type === 'Outpost' ||
+            type === 'Prison' ||
+            type === 'Shipwreck' ||
+            type === 'Scrapyard'
+        ) {
+            element.classList.add('icon-outpost');
+        } else if (type === 'Underground bunker') {
+            element.classList.add('icon-bunker');
+        } else if (
+            type === 'Space station' ||
+            type === 'Asteroid base' ||
+            type === 'Orbital laser platform'
+        ) {
+            element.classList.add('icon-spacestation');
+        } else if (type === 'Landing zone') {
+            element.classList.add('icon-landingzone');
+        } else if (type === 'Settlement') {
+            element.classList.add('icon-settlement');
+        } else {
+            element.classList.add('icon-space');
+        }
+    }
+
+    // Affiche la vraie heure locale (utilise getCustomTime si dispo, sinon UTC)
+    #getLocalTimeString(location) {
+        // Utilise la propriété LOCAL_TIME de Location et convertHoursToTimeString pour afficher l'heure locale en jeu
+        if (location && typeof location.LOCAL_TIME === 'number') {
+            // LOCAL_TIME est en secondes, converti en heures
+            const hours = location.LOCAL_TIME / 3600;
+            // convertHoursToTimeString est importé depuis HelperFunctions.js
+            if (typeof window.convertHoursToTimeString === 'function') {
+                return window.convertHoursToTimeString(hours, false);
+            } else if (typeof convertHoursToTimeString === 'function') {
+                return convertHoursToTimeString(hours, false);
+            }
+            // Fallback simple
+            const h = Math.floor(hours).toString().padStart(2, '0');
+            const m = Math.floor((hours % 1) * 60).toString().padStart(2, '0');
+            return `${h}:${m}`;
+        }
+        return '--:--';
+    }
+
+    // Affiche un infobox détaillé au survol
+    #showAtlasLocationInfobox(location, labelDiv) {
+        let infoBox = document.getElementById('atlas-hoverinfo');
+        if (!infoBox) return;
+    infoBox.innerHTML = `<b>${location.NAME}</b><br>Type: ${location.TYPE}<br>Parent: ${location.PARENT ? location.PARENT.NAME : ''}<br>System: ${location.PARENT_STAR ? location.PARENT_STAR.NAME : ''}`;
+        infoBox.style.opacity = '1';
+        infoBox.style.pointerEvents = 'auto';
+        infoBox.style.zIndex = '9999';
+        infoBox.style.background = 'rgba(20,20,30,0.97)';
+        infoBox.style.color = '#fff';
+        infoBox.style.padding = '8px 12px';
+        infoBox.style.borderRadius = '8px';
+        infoBox.style.boxShadow = '0 2px 8px #000a';
+        // Positionne l'infobox à côté du label
+        const rect = labelDiv.getBoundingClientRect();
+        infoBox.style.left = `${rect.right + 10}px`;
+        infoBox.style.top = `${rect.top}px`;
+        infoBox.style.display = 'block';
+    }
+
+    #hideAtlasLocationInfobox() {
+        let infoBox = document.getElementById('atlas-hoverinfo');
+        if (infoBox) {
+            infoBox.style.opacity = '0';
+            infoBox.style.display = 'none';
+        }
     }
 
     #setBodyIcon(type, element) {

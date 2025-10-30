@@ -1,4 +1,27 @@
-﻿// Calcule un zoom adapté à la taille de l'objet (astre, système, etc)
+﻿// Met à jour l'heure locale affichée sur les labels de l'atlas toutes les secondes
+setInterval(() => {
+	const labels = document.querySelectorAll('.atlas-label-time');
+	labels.forEach(label => {
+		// On retrouve l'objet Location associé via le parent du label
+		const div = label.closest('.atlas-label');
+		if (!div) return;
+		const name = div.dataset.objectName;
+		// DB.locations contient tous les objets Location
+		const location = DB.locations.find(loc => loc.NAME === name);
+		if (!location) return;
+		if (typeof window.convertHoursToTimeString === 'function') {
+			label.innerText = window.convertHoursToTimeString(location.LOCAL_TIME / 3600, false);
+		} else if (typeof convertHoursToTimeString === 'function') {
+			label.innerText = convertHoursToTimeString(location.LOCAL_TIME / 3600, false);
+		} else {
+			const hours = location.LOCAL_TIME / 3600;
+			const h = Math.floor(hours).toString().padStart(2, '0');
+			const m = Math.floor((hours % 1) * 60).toString().padStart(2, '0');
+			label.innerText = `${h}:${m}`;
+		}
+	});
+}, 1000);
+// Calcule un zoom adapté à la taille de l'objet (astre, système, etc)
 function getRecommendedZoomForObject(obj) {
 	if (!obj) return 4.0;
 	// Zoom simple : distance constante comme dans la map (3 × BODY_RADIUS)
