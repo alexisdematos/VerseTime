@@ -114,13 +114,21 @@ function setup() {
 	camera.lookAt(0, 0, 0);
 
 	controls = new OrbitControls(camera, labelRenderer.domElement);
-	controls.enablePan = false;
+	controls.enablePan = true;
 	controls.enableDamping = true;
 	controls.dampingFactor = 0.1;
 	controls.rotateSpeed = 0.5;
 	controls.maxPolarAngle = Math.PI * 0.99;
 	controls.minPolarAngle = Math.PI * 0.01;
 	controls.enableZoom = false;
+	// Clic gauche = rotation, clic droit = pan, molette = zoom
+	controls.mouseButtons = {
+		LEFT: THREE.MOUSE.ROTATE,
+		MIDDLE: THREE.MOUSE.DOLLY,
+		RIGHT: THREE.MOUSE.PAN
+	};
+	// Pour éviter le menu contextuel natif
+	labelRenderer.domElement.addEventListener('contextmenu', (e) => e.preventDefault());
 
 	zoomControls = new TrackballControls(camera, labelRenderer.domElement);
 	zoomControls.noRotate = true;
