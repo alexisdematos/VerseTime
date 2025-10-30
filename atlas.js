@@ -334,12 +334,12 @@ function setFocus_moveCamera(object, oldFocusBody) {
 		
 		newPosition.addVectors(newCameraTarget, relativeVector);
 
-	} else {
-		const direction = new THREE.Vector3(0, -10, 5);
-		direction.setLength((object.BODY_RADIUS / mapScale) * 4);
+		} else {
+			const direction = new THREE.Vector3(0, -10, 5);
+			direction.setLength((object.BODY_RADIUS / mapScale) * 4);
 		
-		newPosition.addVectors(controls.target, direction);
-	}
+			newPosition.addVectors(controls.target, direction);
+		}
 
 	camera.position.copy(newPosition);
 }
@@ -1084,7 +1084,6 @@ function moveCameraToObject(targetObject, distance = 7.5, duration = 800, onComp
 		zoomControls.minDistance = (targetObject.BODY_RADIUS / mapScale) * 1.01;
 	}
 	let objectName = null;
-
 	let objectMesh, targetPosition, endCam, endTarget;
 	if (targetObject instanceof SolarSystem) {
 		// Focus système : vue du dessus
@@ -1095,6 +1094,14 @@ function moveCameraToObject(targetObject, distance = 7.5, duration = 800, onComp
 		objectMesh.getWorldPosition(targetPosition);
 		endTarget = targetPosition.clone();
 		// Place la caméra à distance sur l'axe Z (vue du dessus)
+		endCam = targetPosition.clone().add(new THREE.Vector3(0, 0, distance));
+	} else if (targetObject.TYPE === 'Planet') {
+		// Focus planète : vue du dessus (axe Z de la planète)
+		objectMesh = scene.getObjectByName(`BODYCONTAINER:${targetObject.NAME}`);
+		if (!objectMesh) return;
+		targetPosition = new THREE.Vector3();
+		objectMesh.getWorldPosition(targetPosition);
+		endTarget = targetPosition.clone();
 		endCam = targetPosition.clone().add(new THREE.Vector3(0, 0, distance));
 	} else {
 		objectMesh = scene.getObjectByName(targetObject.NAME);
