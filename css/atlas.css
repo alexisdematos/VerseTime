@@ -97,10 +97,15 @@
         backdrop-filter: blur(7px);
     }
 
+    /* Désactive les events souris sur les POI invisibles, même si pointer-events: auto est défini */
+    .atlas-label[data-object-type="Location"][data-visible="false"] {
+        pointer-events: none !important;
+    }
+
     .atlas-label[data-visible=false] {
         opacity: 0;
         user-select: none;
-        pointer-events: none;
+        pointer-events: none !important;
     }
 
     .atlas-label[data-occluded=true] {

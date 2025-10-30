@@ -156,9 +156,11 @@ class AtlasLabelManager {
         timeElement.innerText = this.#getLocalTimeString(location);
         div.appendChild(timeElement);
 
-        // Infobox détaillé au survol
+        // Infobox détaillé au survol (seulement si visible)
         div.addEventListener('mouseenter', (e) => {
-            this.#showAtlasLocationInfobox(location, div);
+            if (div.dataset.visible === 'true') {
+                this.#showAtlasLocationInfobox(location, div);
+            }
         });
         div.addEventListener('mouseleave', (e) => {
             this.#hideAtlasLocationInfobox();
@@ -327,6 +329,8 @@ class AtlasLabelManager {
     }
 
     #setLabelEvents(domElement, targetObject) {
+        // Ne rien faire pour les POI (Location)
+        if (targetObject instanceof Location) return;
         domElement.addEventListener('pointerdown', (event) => {
             // Si on clique sur le nom, on laisse le handler .atlas-label-name gérer l'animation
             if (event.target.classList.contains('atlas-label-name')) return;
