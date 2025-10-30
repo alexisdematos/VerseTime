@@ -93,9 +93,7 @@ class AtlasLabelManager {
             } else if (typeLevel === 'planet' || typeLevel === 'moon') {
                 target = DB.bodies.find(b => b.NAME === body.NAME) || body;
             }
-            let zoom = null;
-            if (typeLevel === 'planet') zoom = 0.0025;
-            document.dispatchEvent(new CustomEvent('atlasFocusBreadcrumb', { detail: { object: target, zoom, typeLevel } }));
+            document.dispatchEvent(new CustomEvent('atlasFocusBreadcrumb', { detail: { object: target, typeLevel } }));
         });
 
         // INDICATE STATION PRESENCE AT LAGRANGE POINTS

@@ -1,23 +1,10 @@
 ﻿// Calcule un zoom adapté à la taille de l'objet (astre, système, etc)
 function getRecommendedZoomForObject(obj) {
 	if (!obj) return 4.0;
+	// Zoom simple : distance constante comme dans la map (3 × BODY_RADIUS)
 	let r = obj.BODY_RADIUS || 1;
-	let k = 0.4;
-	if (obj.TYPE === 'Moon') k = 0.1;
-	else if (obj.TYPE === 'Planet') k = 0.4;
-	else if (obj.TYPE === 'Star') k = 3.5;
-	else if (obj.TYPE === 'Lagrange Point' || obj.TYPE === 'Jump Point') k = 0.7;
-	else if (obj instanceof SolarSystem || obj.TYPE === 'Solar System') k = 30;
-	// Clamp pour éviter des zooms trop extrêmes
-	let min, max = 50;
-	if (obj.TYPE === 'Moon') {
-		min = 0.0001;
-	} else if (obj.TYPE === 'Planet') {
-		min = 0.015;
-	} else {
-		min = 0.1;
-	}
-	let zoom = Math.max(min, Math.min(max, (r * k) / 10000000));
+	let zoom = (r * 3) / mapScale;
+	// Pour les systèmes, on force un minimum raisonnable
 	if (obj instanceof SolarSystem || obj.TYPE === 'Solar System') zoom = Math.max(zoom, 4.0);
 	console.log(`Recommended zoom for ${obj.NAME} (${obj.TYPE}): ${zoom}`);
 	return zoom;

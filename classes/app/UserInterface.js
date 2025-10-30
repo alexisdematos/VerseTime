@@ -854,19 +854,7 @@ class UserInterface {
 			span.style.textDecoration = 'underline';
 			span.style.marginRight = '4px';
 			span.addEventListener('click', () => {
-				// Détermine le zoom selon le niveau
-				let zoom = 7.5;
-				if (elements.length === 3) {
-					if (idx === 0) zoom = 7.5; // system
-					else if (idx === 1) zoom = 0.03; // body
-					else if (idx === 2) zoom = 0.0001; // childbody
-				} else if (elements.length === 2) {
-					if (idx === 0) zoom = 7.5;
-					else if (idx === 1) zoom = 0.03;
-				} else {
-					zoom = 7.5;
-				}
-				document.dispatchEvent(new CustomEvent('atlasFocusBreadcrumb', { detail: { object: objects[idx], zoom } }));
+				document.dispatchEvent(new CustomEvent('atlasFocusBreadcrumb', { detail: { object: objects[idx] } }));
 			});
 			container.appendChild(span);
 			if (idx < elements.length - 1) {
