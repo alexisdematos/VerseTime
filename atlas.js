@@ -1178,5 +1178,5 @@ document.addEventListener('atlasZoomOut', () => {
 // Fonction pour dézoomer la caméra dans l'atlas
 export function zoomOutAtlas() {
 	if (typeof THREE === 'undefined' || !zoomControls || !camera || !focusSystem) return;
-	moveCameraToObject(focusSystem, 7.5, 800, () => setFocus(focusSystem));
+	moveCameraToObject(focusSystem, 40, 800, () => setFocus(focusSystem));
 }
