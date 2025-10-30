@@ -1,4 +1,29 @@
-﻿import * as THREE from 'three';
+﻿// Calcule un zoom adapté à la taille de l'objet (astre, système, etc)
+function getRecommendedZoomForObject(obj) {
+	if (!obj) return 4.0;
+	let r = obj.BODY_RADIUS || 1;
+	let k = 0.4;
+	if (obj.TYPE === 'Moon') k = 0.1;
+	else if (obj.TYPE === 'Planet') k = 0.4;
+	else if (obj.TYPE === 'Star') k = 3.5;
+	else if (obj.TYPE === 'Lagrange Point' || obj.TYPE === 'Jump Point') k = 0.7;
+	else if (obj instanceof SolarSystem || obj.TYPE === 'Solar System') k = 30;
+	// Clamp pour éviter des zooms trop extrêmes
+	let min, max = 50;
+	if (obj.TYPE === 'Moon') {
+		min = 0.0001;
+	} else if (obj.TYPE === 'Planet') {
+		min = 0.015;
+	} else {
+		min = 0.1;
+	}
+	let zoom = Math.max(min, Math.min(max, (r * k) / 10000000));
+	if (obj instanceof SolarSystem || obj.TYPE === 'Solar System') zoom = Math.max(zoom, 4.0);
+	console.log(`Recommended zoom for ${obj.NAME} (${obj.TYPE}): ${zoom}`);
+	return zoom;
+}
+window.getRecommendedZoomForObject = getRecommendedZoomForObject;
+import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { TrackballControls } from 'three/addons/controls/TrackballControls.js';
 import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
@@ -1143,9 +1168,10 @@ function moveCameraToObject(targetObject, distance = 7.5, duration = 800, onComp
 
 // Fil d'Ariane : écouteur pour focus sur l'objet cliqué avec animation
 document.addEventListener('atlasFocusBreadcrumb', (e) => {
-	let zoom = (typeof e.detail.zoom !== 'undefined')
-		? e.detail.zoom
-		: (typeof UI.getAtlasZoomForObject === 'function' ? UI.getAtlasZoomForObject(e.detail.object) : 7.5);
+	// Utilise le zoom passé dans l'event si fourni, sinon calcule dynamiquement
+	let zoom = e.detail.zoom ?? ((typeof window.getRecommendedZoomForObject === 'function')
+			? window.getRecommendedZoomForObject(e.detail.object)
+			: 7.5);
 	// Correction : s'assurer que le zoom n'est jamais inférieur au minDistance calculé pour l'objet
 	if (e.detail.object && e.detail.object.BODY_RADIUS) {
 		const minDist = (e.detail.object.BODY_RADIUS / mapScale) * 1.01;

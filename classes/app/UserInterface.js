@@ -8,12 +8,12 @@ import Star from '../Star.js';
 
 
 class UserInterface {
-	// Calcule le zoom comme dans le fil d'Ariane, selon l'objet et la hiérarchie
+	// Obsolète : le zoom est désormais calculé dynamiquement dans getRecommendedZoomForObject
 	getAtlasZoomForObject(object) {
-		if (object instanceof SolarSystem) return 7.5;
-		if (object.TYPE === 'Star') return 0.03;
-		if (object.TYPE === 'Planet' || object.TYPE === 'Jump Point') return 0.03;
-		return 0.0001;
+		if (typeof window.getRecommendedZoomForObject === 'function') {
+			return window.getRecommendedZoomForObject(object);
+		}
+		return 7.5;
 	}
     constructor() {
         if (UserInterface.instance) return UserInterface.instance;
@@ -822,16 +822,7 @@ class UserInterface {
 				// Cherche l'instance principale dans DB.bodies
 				target = DB.bodies.find(b => b.NAME === object.NAME) || object;
 			}
-			// Détermine la profondeur pour le zoom (comme dans le fil d'Ariane)
-			let zoom = 7.5;
-			if (typeLevel === 'moon') {
-				zoom = 0.0001;
-			} else if (typeLevel === 'planet') {
-				zoom = 0.03;
-			} else if (typeLevel === 'star') {
-				zoom = 7.5;
-			}
-			document.dispatchEvent(new CustomEvent('atlasFocusBreadcrumb', { detail: { object: target, zoom, typeLevel } }));
+			document.dispatchEvent(new CustomEvent('atlasFocusBreadcrumb', { detail: { object: target, typeLevel } }));
 		});
 
 		return element;
