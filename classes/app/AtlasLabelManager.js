@@ -93,7 +93,12 @@ class AtlasLabelManager {
             } else if (typeLevel === 'planet' || typeLevel === 'moon') {
                 target = DB.bodies.find(b => b.NAME === body.NAME) || body;
             }
-            document.dispatchEvent(new CustomEvent('atlasFocusBreadcrumb', { detail: { object: target, typeLevel } }));
+            // Si on clique sur un label de planète, zoom "proche" (zoom normal)
+            let customZoom = undefined;
+            if (typeLevel === 'planet' && typeof window.getRecommendedZoomForObject === 'function') {
+                customZoom = window.getRecommendedZoomForObject(target);
+            }
+            document.dispatchEvent(new CustomEvent('atlasFocusBreadcrumb', { detail: { object: target, typeLevel, zoom: customZoom } }));
         });
 
         // INDICATE STATION PRESENCE AT LAGRANGE POINTS

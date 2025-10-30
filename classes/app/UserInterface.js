@@ -3,8 +3,10 @@ import Settings from './Preferences.js';
 import DB from './Database.js';
 import Window from './Window.js';
 
+
 import SolarSystem from '../SolarSystem.js';
 import Star from '../Star.js';
+import { mapScale } from '../../constants.js';
 
 
 class UserInterface {
@@ -815,6 +817,7 @@ class UserInterface {
 			e.stopPropagation();
 			e.stopImmediatePropagation();
 			let target = object;
+			let customZoom = undefined;
 			if (typeLevel === 'star' && object.PARENT_SYSTEM && object.PARENT_SYSTEM.NAME && object.NAME === object.PARENT_SYSTEM.NAME) {
 				// Cherche l'instance réelle de SolarSystem
 				target = DB.systems.find(sys => sys.NAME === object.PARENT_SYSTEM.NAME) || object.PARENT_SYSTEM;
@@ -822,7 +825,26 @@ class UserInterface {
 				// Cherche l'instance principale dans DB.bodies
 				target = DB.bodies.find(b => b.NAME === object.NAME) || object;
 			}
-			document.dispatchEvent(new CustomEvent('atlasFocusBreadcrumb', { detail: { object: target, typeLevel } }));
+			// Si on clique sur une planète, zoom large basé sur la distance de la lune la plus éloignée
+			if (typeLevel === 'planet') {
+				let planet = target;
+				let maxMoonDist = 0;
+				if (Array.isArray(DB.bodies)) {
+					for (const body of DB.bodies) {
+						if (body.TYPE === 'Moon' && body.PARENT && body.PARENT.NAME === planet.NAME && typeof body.ORBITAL_RADIUS === 'number') {
+							if (body.ORBITAL_RADIUS > maxMoonDist) maxMoonDist = body.ORBITAL_RADIUS;
+						}
+					}
+				}
+				if (maxMoonDist > 0) {
+					// On cadre pour voir la lune la plus éloignée, avec un peu de marge
+					customZoom = (maxMoonDist * 1.2) / mapScale;
+				} else if (typeof window.getRecommendedZoomForObject === 'function') {
+					// Fallback : zoom normal ×2
+					customZoom = window.getRecommendedZoomForObject(target) * 2;
+				}
+			}
+			document.dispatchEvent(new CustomEvent('atlasFocusBreadcrumb', { detail: { object: target, typeLevel, zoom: customZoom } }));
 		});
 
 		return element;
@@ -854,7 +876,26 @@ class UserInterface {
 			span.style.textDecoration = 'underline';
 			span.style.marginRight = '4px';
 			span.addEventListener('click', () => {
-				document.dispatchEvent(new CustomEvent('atlasFocusBreadcrumb', { detail: { object: objects[idx] } }));
+				let obj = objects[idx];
+				let customZoom = undefined;
+				// Si on clique sur une planète dans le fil d'Ariane, zoom large basé sur la distance de la lune la plus éloignée
+				if (obj && obj.TYPE === 'Planet') {
+					let planet = obj;
+					let maxMoonDist = 0;
+					if (Array.isArray(DB.bodies)) {
+						for (const body of DB.bodies) {
+							if (body.TYPE === 'Moon' && body.PARENT && body.PARENT.NAME === planet.NAME && typeof body.ORBITAL_RADIUS === 'number') {
+								if (body.ORBITAL_RADIUS > maxMoonDist) maxMoonDist = body.ORBITAL_RADIUS;
+							}
+						}
+					}
+					if (maxMoonDist > 0) {
+						customZoom = (maxMoonDist * 1.2) / mapScale;
+					} else if (typeof window.getRecommendedZoomForObject === 'function') {
+						customZoom = window.getRecommendedZoomForObject(obj) * 2;
+					}
+				}
+				document.dispatchEvent(new CustomEvent('atlasFocusBreadcrumb', { detail: { object: obj, zoom: customZoom } }));
 			});
 			container.appendChild(span);
 			if (idx < elements.length - 1) {

@@ -16,6 +16,7 @@ import { TrackballControls } from 'three/addons/controls/TrackballControls.js';
 import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
 
 import { round, calculateDistance2D, calculateDistance3D, makeLine, makeCircle, getCelestialBodiesInSystem, getSystemByName, getBodyByName, getStarByName, readableNumber, random, convertPolarToCartesian, degrees, radians, mapLinear } from './HelperFunctions.js';
+import { mapScale } from './constants.js';
 import Settings from './classes/app/Preferences.js';
 import DB from './classes/app/Database.js';
 import UI from './classes/app/UserInterface.js';
@@ -41,7 +42,6 @@ const orbitLineMaterial = new THREE.LineBasicMaterial({
 const atlasDiv = UI.el('atlas-container');
 const infoBox = UI.el('atlas-hoverinfo');
 
-const mapScale = 10_000_000;
 let focusBody = null;
 let focusSystem = null;
 
