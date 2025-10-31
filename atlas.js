@@ -1,4 +1,147 @@
-﻿// Met à jour l'heure locale affichée sur les labels de l'atlas toutes les secondes
+﻿import { fuzzySearch } from './classes/app/fuzzySearch.js';
+// --- ATLAS SEARCH BAR ---
+const searchInput = document.getElementById('atlas-search');
+let searchDropdown = null;
+if (searchInput) {
+	// Crée le dropdown si besoin
+	searchDropdown = document.createElement('div');
+	searchDropdown.id = 'atlas-search-dropdown';
+	searchDropdown.style.position = 'absolute';
+	searchDropdown.style.background = '#181825';
+	searchDropdown.style.color = '#fff';
+	searchDropdown.style.border = '1px solid #333';
+	searchDropdown.style.borderRadius = '6px';
+	searchDropdown.style.zIndex = 10000;
+	searchDropdown.style.minWidth = '320px';
+	searchDropdown.style.maxHeight = '220px';
+	searchDropdown.style.overflowY = 'auto';
+	searchDropdown.style.display = 'none';
+	searchDropdown.style.boxShadow = '0 2px 12px #000a';
+	searchDropdown.style.fontSize = '14px';
+	searchDropdown.style.left = searchInput.getBoundingClientRect().left + 'px';
+	document.body.appendChild(searchDropdown);
+
+	// Collecte tous les objets recherchables
+	function getArianePath(obj, type) {
+		// Remonte dynamiquement la hiérarchie des parents
+		const names = [];
+		let current = obj;
+		let safety = 0;
+		while (current && safety++ < 10) {
+			if (current.NAME) names.unshift(current.NAME);
+			// POI: parent = planète/lune
+			if (current.PARENT) {
+				current = current.PARENT;
+				continue;
+			}
+			// Planète/lune: parent_star = étoile
+			if (current.PARENT_STAR) {
+				current = current.PARENT_STAR;
+				continue;
+			}
+			// Étoile: parent_system = système
+			if (current.PARENT_SYSTEM) {
+				current = current.PARENT_SYSTEM;
+				continue;
+			}
+			break;
+		}
+		return names.join(' / ');
+	}
+
+	function getAllSearchables() {
+		const arr = [];
+		for (const sys of DB.systems) arr.push({type: 'system', obj: sys, label: sys.NAME, ariane: getArianePath(sys, 'system')});
+		for (const body of DB.bodies) arr.push({type: body.TYPE, obj: body, label: body.NAME, ariane: getArianePath(body, body.TYPE)});
+		for (const loc of DB.locations) arr.push({type: 'poi', obj: loc, label: loc.NAME, ariane: getArianePath(loc, 'poi')});
+		return arr;
+	}
+
+	function showDropdown(results) {
+		if (!results.length) { searchDropdown.style.display = 'none'; return; }
+		searchDropdown.innerHTML = '';
+		for (const {item} of results.slice(0, 10)) {
+			const div = document.createElement('div');
+			div.innerHTML = `<span style="font-weight:bold">${item.label}</span> <span style="color:#aaa;font-size:12px">(${item.type})</span><br><span style="color:#8cf;font-size:12px">${item.ariane}</span>`;
+			div.style.padding = '6px 10px';
+			div.style.cursor = 'pointer';
+			div.onmouseenter = () => div.style.background = '#222a';
+			div.onmouseleave = () => div.style.background = '';
+			div.onclick = () => {
+				searchInput.value = '';
+				searchDropdown.style.display = 'none';
+				focusAtlasObject(item);
+			};
+			searchDropdown.appendChild(div);
+		}
+		// Positionne le dropdown sous l'input
+		const rect = searchInput.getBoundingClientRect();
+		searchDropdown.style.left = rect.left + 'px';
+		searchDropdown.style.top = (rect.bottom + window.scrollY) + 'px';
+		searchDropdown.style.display = 'block';
+	}
+
+	function focusAtlasObject(item) {
+		// Utilise le même zoom dynamique que le fil d'Ariane/sidebar
+		let targetObj = item.obj;
+		if (item.type === 'poi') targetObj = item.obj.PARENT;
+		let zoom = (typeof window.getRecommendedZoomForObject === 'function')
+			? window.getRecommendedZoomForObject(targetObj)
+			: 7.5;
+		moveCameraToObject(targetObj, zoom, 800, () => {
+			setFocus(targetObj, { skipCameraAnimation: true });
+			if (typeof UI !== 'undefined' && UI.updateAtlasHierarchy) UI.updateAtlasHierarchy(focusBody, focusSystem);
+		});
+	}
+
+	let lastResults = [];
+	searchInput.addEventListener('input', (e) => {
+		const val = searchInput.value.trim();
+		if (!val) { searchDropdown.style.display = 'none'; return; }
+		const all = getAllSearchables();
+		const results = fuzzySearch(val, all, x => x.label);
+		lastResults = results;
+		showDropdown(results);
+	});
+	searchInput.addEventListener('keydown', (e) => {
+		if (searchDropdown.style.display !== 'block') return;
+		const items = Array.from(searchDropdown.children);
+		let idx = items.findIndex(div => div.classList.contains('selected'));
+		if (e.key === 'ArrowDown') {
+			if (idx >= 0) items[idx].classList.remove('selected');
+			idx = Math.min(idx + 1, items.length - 1);
+			items[idx]?.classList.add('selected');
+			items[idx]?.scrollIntoView({block: 'nearest'});
+			e.preventDefault();
+		} else if (e.key === 'ArrowUp') {
+			if (idx >= 0) items[idx].classList.remove('selected');
+			idx = Math.max(idx - 1, 0);
+			items[idx]?.classList.add('selected');
+			items[idx]?.scrollIntoView({block: 'nearest'});
+			e.preventDefault();
+		} else if (e.key === 'Enter') {
+			if (idx >= 0) {
+				items[idx].click();
+			} else if (lastResults.length) {
+				// Sélectionne le premier résultat si rien n'est surligné
+				const {item} = lastResults[0];
+				searchInput.value = '';
+				searchDropdown.style.display = 'none';
+				focusAtlasObject(item);
+			}
+			e.preventDefault();
+		} else if (e.key === 'Escape') {
+			searchDropdown.style.display = 'none';
+		}
+	});
+	// Ferme le dropdown si on clique ailleurs
+	document.addEventListener('mousedown', (e) => {
+		if (!searchDropdown.contains(e.target) && e.target !== searchInput) {
+			searchDropdown.style.display = 'none';
+		}
+	});
+}
+// Met à jour l'heure locale affichée sur les labels de l'atlas toutes les secondes
 setInterval(() => {
 	const labels = document.querySelectorAll('.atlas-label-time');
 	labels.forEach(label => {
