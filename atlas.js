@@ -62,7 +62,37 @@ if (searchInput) {
 		searchDropdown.innerHTML = '';
 		for (const {item} of results.slice(0, 10)) {
 			const div = document.createElement('div');
-			div.innerHTML = `<span style="font-weight:bold">${item.label}</span> <span style="color:#aaa;font-size:12px">(${item.type})</span><br><span style="color:#8cf;font-size:12px">${item.ariane}</span>`;
+			let extra = '';
+			if (item.type === 'poi' && item.obj && typeof item.obj.LOCAL_TIME === 'number') {
+				let timeStr = '';
+				if (typeof window.convertHoursToTimeString === 'function') {
+					timeStr = window.convertHoursToTimeString(item.obj.LOCAL_TIME / 3600, false);
+				} else if (typeof convertHoursToTimeString === 'function') {
+					timeStr = convertHoursToTimeString(item.obj.LOCAL_TIME / 3600, false);
+				} else {
+					const hours = item.obj.LOCAL_TIME / 3600;
+					const h = Math.floor(hours).toString().padStart(2, '0');
+					const m = Math.floor((hours % 1) * 60).toString().padStart(2, '0');
+					timeStr = `${h}:${m}`;
+				}
+				let illum = '';
+				if (typeof item.obj.ILLUMINATION_STATUS === 'string') {
+					illum = item.obj.ILLUMINATION_STATUS;
+				} else if (typeof item.obj.ILLUMINATION_STATUS === 'function') {
+					illum = item.obj.ILLUMINATION_STATUS();
+				} else if (item.obj.ILLUMINATION_STATUS) {
+					illum = String(item.obj.ILLUMINATION_STATUS);
+				}
+				// Simplifie en "Day" ou "Night" si possible
+				let daynight = '';
+				if (illum) {
+					if (/night|midnight/i.test(illum)) daynight = 'night';
+					else if (/day|noon|afternoon|morning/i.test(illum)) daynight = 'day';
+					else daynight = illum;
+				}
+				extra = `<span style="color:#ff8;font-size:12px;margin-left:8px">${timeStr} <b>${daynight}</b></span>`;
+			}
+			div.innerHTML = `<span style="font-weight:bold">${item.label}</span> <span style="color:#aaa;font-size:12px">(${item.type})</span> ${extra}<br><span style="color:#8cf;font-size:12px">${item.ariane}</span>`;
 			div.style.padding = '6px 10px';
 			div.style.cursor = 'pointer';
 			div.onmouseenter = () => div.style.background = '#222a';

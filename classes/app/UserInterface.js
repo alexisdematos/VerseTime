@@ -187,10 +187,11 @@ class UserInterface {
 			if (event.target.tagName.toLowerCase() === 'input') return;
 
 			if (event.key === '/') {
-				if (!UI.Settings.show) UI.Settings.toggle();
-				this.locationSelectedIndex = -1;
-				this.getSelectedButton()?.classList.remove('selected');
-				UI.el('location-selection-input').focus();
+				// Focus our custom search bar instead of toggling settings
+				const searchBar = document.getElementById('atlas-search');
+				if (searchBar) {
+					searchBar.focus();
+				}
 				return;
 			}
 		})
