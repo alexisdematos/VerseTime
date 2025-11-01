@@ -1357,11 +1357,11 @@ function moveCameraToObject(targetObject, distance = 7.5, duration = 800, onComp
 			requestAnimationFrame(() => {
 				controls.update();
 				zoomControls.update();
-				if (typeof onComplete === 'function') onComplete();
 			});
 		}
 	}
 	animate();
+	if (typeof onComplete === 'function') onComplete();
 }
 
 // Fil d'Ariane : écouteur pour focus sur l'objet cliqué avec animation

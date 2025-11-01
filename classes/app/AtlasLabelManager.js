@@ -132,8 +132,8 @@ class AtlasLabelManager {
         div.classList.add('atlas-label');
         div.dataset.objectType = 'Location';
         div.dataset.objectName = location.NAME;
-    div.dataset.systemName = location.PARENT_STAR ? location.PARENT_STAR.NAME : '';
-    div.dataset.bodyName = location.PARENT ? location.PARENT.NAME : '';
+        div.dataset.systemName = location.PARENT_STAR ? location.PARENT_STAR.NAME : '';
+        div.dataset.bodyName = location.PARENT ? location.PARENT.NAME : '';
         div.dataset.visible = false;
 
         this.#setLabelEvents(div, location);
@@ -332,8 +332,6 @@ class AtlasLabelManager {
         // Ne rien faire pour les POI (Location)
         if (targetObject instanceof Location) return;
         domElement.addEventListener('pointerdown', (event) => {
-            // Si on clique sur le nom, on laisse le handler .atlas-label-name gérer l'animation
-            if (event.target.classList.contains('atlas-label-name')) return;
             if (event.button === 0) {
                 setFocus(targetObject);
             }
